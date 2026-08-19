@@ -153,4 +153,39 @@ app.put('/api/seek', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 搜索歌曲
+app.get('/api/search', async (req, res) => {
+  const q = req.query.q;
+  if (!q) return res.json({ tracks: [] });
+  try {
+    const r = await spotify('GET', '/search?q=' + encodeURIComponent(q) + '&type=track&limit=20');
+    res.json({ tracks: r.data.tracks.items });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 直接播放指定曲目（传入 uris；不传则恢复当前播放）
+app.post('/api/play', async (req, res) => {
+  const uris = req.body.uris;
+  try {
+    await spotify('PUT', '/me/player/play', (uris && uris.length) ? { uris } : {});
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 加入播放队列（作为下一首）
+app.post('/api/queue', async (req, res) => {
+  const uri = req.body.uri;
+  if (!uri) return res.status(400).json({ error: 'missing uri' });
+  try {
+    await spotify('POST', '/me/player/queue?uri=' + encodeURIComponent(uri));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.listen(PORT, () => console.log('Spotify 控制器运行在 http://localhost:' + PORT));

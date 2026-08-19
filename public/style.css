@@ -69,3 +69,52 @@ input[type=range] { flex: 1; accent-color: #1db954; }
 }
 .device-select option { color: #333; }
 .device { margin-top: 8px; color: #999; font-size: .85rem; }
+/* 搜索点歌 */
+.search-wrap { position: relative; margin-bottom: 8px; }
+#search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 24px;
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  font-size: .95rem;
+  outline: none;
+}
+#search-input::placeholder { color: rgba(255,255,255,.6); }
+.search-results {
+  display: none;
+  margin-top: 8px;
+  background: rgba(0,0,0,.45);
+  border-radius: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  text-align: left;
+}
+.search-results.show { display: block; }
+.result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.result:hover { background: rgba(255,255,255,.1); }
+.r-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: #444; }
+.r-info { flex: 1; min-width: 0; }
+.r-name { font-size: .9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-artist { font-size: .78rem; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-play, .r-queue {
+  background: #1db954;
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: .9rem;
+}
+.r-queue { background: rgba(255,255,255,.2); }
+.r-play:hover, .r-queue:hover { transform: scale(1.1); }
+.no-result { padding: 16px; text-align: center; color: #ccc; font-size: .85rem; }

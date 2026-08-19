@@ -2,6 +2,11 @@ const $ = (id) => document.getElementById(id);
 let duration = 0;
 let dragging = false;
 let isPlaying = false;
+let searchTimer = null;
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 async function refresh() {
   try {
@@ -62,6 +67,66 @@ async function call(method, url, body) {
     body: body ? JSON.stringify(body) : undefined
   });
 }
+
+// ---- 搜索点歌 ----
+async function search(q) {
+  try {
+    const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+    const d = await r.json();
+    renderResults(d.tracks || []);
+  } catch (e) {}
+}
+
+function renderResults(tracks) {
+  const box = $('search-results');
+  if (!tracks.length) {
+    box.innerHTML = '<div class="no-result">没有找到相关歌曲</div>';
+    box.classList.add('show');
+    return;
+  }
+  box.innerHTML = tracks.map(t => {
+    const img = (t.album.images && t.album.images[0]) ? t.album.images[0].url : '';
+    const artists = t.artists.map(a => a.name).join(', ');
+    return '<div class="result" data-uri="' + t.uri + '">' +
+      '<img class="r-img" src="' + img + '" alt="">' +
+      '<div class="r-info">' +
+        '<div class="r-name">' + escapeHtml(t.name) + '</div>' +
+        '<div class="r-artist">' + escapeHtml(artists) + '</div>' +
+      '</div>' +
+      '<button class="r-play" title="立即播放">▶</button>' +
+      '<button class="r-queue" title="加入队列">＋</button>' +
+    '</div>';
+  }).join('');
+  box.classList.add('show');
+}
+
+// ---- 事件 ----
+$('search-input').addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  if (!q) {
+    $('search-results').innerHTML = '';
+    $('search-results').classList.remove('show');
+    return;
+  }
+  searchTimer = setTimeout(() => search(q), 400);
+});
+
+$('search-results').addEventListener('click', (e) => {
+  const row = e.target.closest('.result');
+  if (!row) return;
+  const uri = row.getAttribute('data-uri');
+  if (e.target.closest('.r-queue')) {
+    call('POST', '/api/queue', { uri });
+  } else {
+    call('POST', '/api/play', { uris: [uri] });
+    setTimeout(refresh, 300);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-wrap')) $('search-results').classList.remove('show');
+});
 
 $('playpause').onclick = () => {
   call('PUT', isPlaying ? '/api/pause' : '/api/play');
