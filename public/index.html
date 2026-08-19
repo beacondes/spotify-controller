@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify 控制器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div id="login-view" class="view">
+      <h1>🎵 Spotify 控制器</h1>
+      <p>只控制播放，不在此浏览器播放</p>
+      <a class="btn" href="/login">登录 Spotify</a>
+    </div>
+    <div id="player-view" class="view hidden">
+      <div class="cover-wrap"><img id="cover" src="" alt=""></div>
+      <div class="info">
+        <div id="title" class="title">—</div>
+        <div id="artist" class="artist">—</div>
+      </div>
+      <div class="progress-wrap">
+        <span id="cur">0:00</span>
+        <input type="range" id="progress" min="0" max="100" value="0">
+        <span id="dur">0:00</span>
+      </div>
+      <div class="controls">
+        <button id="prev" class="ctrl">⏮</button>
+        <button id="playpause" class="ctrl big">▶️</button>
+        <button id="next" class="ctrl">⏭</button>
+      </div>
+      <div class="volume-wrap">
+        <span>🔊</span>
+        <input type="range" id="volume" min="0" max="100" value="100">
+      </div>
+      <div class="device-wrap">
+        <select id="device-select" class="device-select"></select>
+        <div id="device" class="device"></div>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "spotify-controller",
+  "version": "1.0.0",
+  "description": "网页控制 Spotify 播放（只控制不播放）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "express": "^4.19.2"
+  }
+}
