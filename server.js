@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const crypto = require('crypto');
+const fs = require('fs');
 
 const app = express();
 app.use(express.json());
@@ -36,8 +37,24 @@ const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3000/callback';
 const PORT = process.env.PORT || 3000;
 
+const TOKEN_FILE = process.env.TOKEN_FILE || 'tokens.json';
+
 let accessToken = null;
 let refreshToken = null;
+
+// 启动时恢复之前保存的凭证（一次授权，之后免登录）
+try {
+  const saved = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
+  if (saved.refreshToken) refreshToken = saved.refreshToken;
+  if (saved.accessToken) accessToken = saved.accessToken;
+  console.log('已恢复保存的 Spotify 凭证');
+} catch (e) {}
+
+function saveTokens() {
+  try {
+    fs.writeFileSync(TOKEN_FILE, JSON.stringify({ accessToken, refreshToken }, null, 2));
+  } catch (e) {}
+}
 
 app.get('/login', (req, res) => {
   const scope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
@@ -65,6 +82,7 @@ app.get('/callback', async (req, res) => {
       });
     accessToken = resp.data.access_token;
     refreshToken = resp.data.refresh_token;
+    saveTokens();
     res.redirect('/');
   } catch (e) {
     const msg = e.response && e.response.data && e.response.data.error_description
@@ -85,6 +103,7 @@ async function ensureToken() {
         }
       });
     accessToken = resp.data.access_token;
+    saveTokens();
   } catch (e) {
     // 刷新失败就返回当前 token，让请求层去处理 401
   }
