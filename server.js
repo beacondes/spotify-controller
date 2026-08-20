@@ -20,10 +20,14 @@ function parseCookies(header) {
   return out;
 }
 
+// PWA 元数据与精简页框架不含敏感数据，放行（浏览器获取 manifest/图标时可能不带 cookie）
+const PUBLIC_PATHS = ['/manifest.json', '/sw.js', '/icon.svg', '/icon-192.png', '/icon-512.png', '/mini'];
+
 // 访问密码门禁（未设置 ACCESS_PASSWORD 时放行，便于本地开发）
 app.use((req, res, next) => {
   if (!ACCESS_PASSWORD) return next();
   if (req.path === '/auth' || req.path === '/api/auth') return next();
+  if (PUBLIC_PATHS.includes(req.path)) return next();
   const c = parseCookies(req.headers.cookie);
   if (c.auth === AUTH_HASH) return next();
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: '未登录' });
