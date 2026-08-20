@@ -1,0 +1,13 @@
+{
+  "name": "Spotify 控制",
+  "short_name": "Spotify",
+  "description": "Spotify 播放控制器",
+  "start_url": "/mini",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#191414",
+  "theme_color": "#191414",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Spotify 控制</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#191414">
+<link rel="apple-touch-icon" href="/icon.svg">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #191414;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 28px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.track { text-align: center; margin-bottom: 22px; max-width: 100%; }
+#title { font-size: 1.15rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#artist { font-size: .85rem; color: #999; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#device { font-size: .72rem; color: #666; margin-top: 8px; }
+.progress { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 440px; margin-bottom: 18px; font-size: .72rem; color: #999; }
+.progress input[type=range] { flex: 1; accent-color: #1db954; }
+.controls { display: flex; align-items: center; justify-content: center; gap: 44px; }
+.ctrl { background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; padding: 10px; line-height: 1; }
+.ctrl#playpause { font-size: 3.4rem; }
+.ctrl:active { transform: scale(0.9); }
+.volume { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 440px; margin-top: 28px; }
+.volume input[type=range] { flex: 1; accent-color: #1db954; }
+.volume span { font-size: 1rem; }
+</style>
+</head>
+<body>
+  <div class="track">
+    <div id="title">—</div>
+    <div id="artist">—</div>
+    <div id="device"></div>
+  </div>
+  <div class="progress">
+    <span id="cur">0:00</span>
+    <input type="range" id="progress" min="0" max="100" value="0">
+    <span id="dur">0:00</span>
+  </div>
+  <div class="controls">
+    <button id="prev" class="ctrl" aria-label="上一首">⏮</button>
+    <button id="playpause" class="ctrl" aria-label="播放/暂停">▶️</button>
+    <button id="next" class="ctrl" aria-label="下一首">⏭</button>
+  </div>
+  <div class="volume">
+    <span>🔊</span>
+    <input type="range" id="volume" min="0" max="100" value="100">
+  </div>
+<script>
+const $ = id => document.getElementById(id);
+let duration = 0, isPlaying = false, dragging = false;
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    if (!d.authed) { location.href = '/'; return; }
+    if (d.playing && d.item) {
+      duration = d.item.duration_ms;
+      isPlaying = !!d.is_playing;
+      $('title').textContent = d.item.name;
+      $('artist').textContent = d.item.artists.map(a => a.name).join(', ');
+      $('dur').textContent = fmt(duration);
+      if (!dragging) {
+        $('progress').value = duration ? (d.progress_ms / duration) * 100 : 0;
+        $('cur').textContent = fmt(d.progress_ms);
+      }
+      $('playpause').textContent = isPlaying ? '⏸️' : '▶️';
+    }
+    if (d.device) $('device').textContent = '设备：' + d.device.name;
+  } catch (e) {}
+}
+function fmt(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+async function call(method, url, body) {
+  await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+}
+$('playpause').onclick = () => { call('PUT', isPlaying ? '/api/pause' : '/api/play'); setTimeout(refresh, 300); };
+$('next').onclick = () => { call('POST', '/api/next'); setTimeout(refresh, 300); };
+$('prev').onclick = () => { call('POST', '/api/previous'); setTimeout(refresh, 300); };
+$('volume').oninput = e => call('PUT', '/api/volume', { volume: e.target.value });
+$('progress').onpointerdown = () => { dragging = true; };
+$('progress').onpointerup = () => { dragging = false; };
+$('progress').onchange = e => { call('PUT', '/api/seek', { position_ms: Math.round(e.target.value / 100 * duration) }); setTimeout(refresh, 300); };
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

@@ -292,4 +292,7 @@ app.post('/api/auth', (req, res) => {
   }
 });
 
+// 精简控制页（无封面，仅控制按钮）
+app.get('/mini', (req, res) => res.sendFile(__dirname + '/public/mini.html'));
+
 app.listen(PORT, () => console.log('Spotify 控制器运行在 http://localhost:' + PORT));
