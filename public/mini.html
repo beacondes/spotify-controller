@@ -65,8 +65,9 @@ let duration = 0, isPlaying = false, dragging = false;
 async function refresh() {
   try {
     const r = await fetch('/api/status');
+    if (r.status === 401) { location.href = '/auth'; return; }
     const d = await r.json();
-    if (!d.authed) { location.href = '/'; return; }
+    if (d && d.authed === false) { location.href = '/'; return; }
     if (d.playing && d.item) {
       duration = d.item.duration_ms;
       isPlaying = !!d.is_playing;

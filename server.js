@@ -45,6 +45,8 @@ const TOKEN_FILE = process.env.TOKEN_FILE || 'tokens.json';
 
 let accessToken = null;
 let refreshToken = null;
+let tokenExpiry = 0;        // accessToken 过期时间戳
+let refreshPromise = null;  // 并发刷新锁
 
 // 启动时恢复之前保存的凭证（一次授权，之后免登录）
 try {
@@ -86,6 +88,7 @@ app.get('/callback', async (req, res) => {
       });
     accessToken = resp.data.access_token;
     refreshToken = resp.data.refresh_token;
+    tokenExpiry = Date.now() + (resp.data.expires_in || 3600) * 1000;
     saveTokens();
     res.redirect('/');
   } catch (e) {
@@ -96,22 +99,32 @@ app.get('/callback', async (req, res) => {
 });
 
 async function ensureToken() {
+  // token 还有 60 秒以上有效，直接复用（避免每次请求都刷新导致 Spotify 403）
+  if (accessToken && Date.now() < tokenExpiry - 60000) return accessToken;
   if (!refreshToken) return accessToken;
-  try {
-    const resp = await axios.post('https://accounts.spotify.com/api/token',
-      new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString(),
-      {
-        headers: {
-          'Authorization': 'Basic ' + Buffer.from(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      });
-    accessToken = resp.data.access_token;
-    saveTokens();
-  } catch (e) {
-    // 刷新失败就返回当前 token，让请求层去处理 401
+  // 并发刷新锁：多个请求同时需要刷新时，只发一次刷新请求
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const resp = await axios.post('https://accounts.spotify.com/api/token',
+          new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString(),
+          {
+            headers: {
+              'Authorization': 'Basic ' + Buffer.from(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64'),
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          });
+        accessToken = resp.data.access_token;
+        tokenExpiry = Date.now() + (resp.data.expires_in || 3600) * 1000;
+        saveTokens();
+      } catch (e) {
+        // 刷新失败就返回当前 token，让请求层去处理 401
+      }
+      refreshPromise = null;
+      return accessToken;
+    })();
   }
-  return accessToken;
+  return refreshPromise;
 }
 
 async function spotify(method, url, body) {
