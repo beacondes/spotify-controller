@@ -4,6 +4,31 @@ const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
+
+const ACCESS_PASSWORD = process.env.ACCESS_PASSWORD;
+const AUTH_HASH = ACCESS_PASSWORD
+  ? crypto.createHash('sha256').update(ACCESS_PASSWORD).digest('hex')
+  : null;
+
+function parseCookies(header) {
+  const out = {};
+  (header || '').split(';').forEach(kv => {
+    const i = kv.indexOf('=');
+    if (i > 0) out[kv.slice(0, i).trim()] = kv.slice(i + 1).trim();
+  });
+  return out;
+}
+
+// 访问密码门禁（未设置 ACCESS_PASSWORD 时放行，便于本地开发）
+app.use((req, res, next) => {
+  if (!ACCESS_PASSWORD) return next();
+  if (req.path === '/auth' || req.path === '/api/auth') return next();
+  const c = parseCookies(req.headers.cookie);
+  if (c.auth === AUTH_HASH) return next();
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: '未登录' });
+  return res.redirect('/auth');
+});
+
 app.use(express.static('public'));
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
@@ -185,6 +210,66 @@ app.post('/api/queue', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// 访问密码登录页
+app.get('/auth', (req, res) => {
+  res.type('html').send(`<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 - Spotify 控制器</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,"Segoe UI",Roboto,sans-serif; background:linear-gradient(135deg,#1db954,#191414); min-height:100vh; display:flex; align-items:center; justify-content:center; color:#fff; }
+.box { width:100%; max-width:340px; padding:32px 28px; background:rgba(0,0,0,.35); border-radius:16px; text-align:center; }
+h1 { font-size:1.6rem; margin-bottom:6px; }
+p { color:#ccc; font-size:.85rem; margin-bottom:24px; }
+input { width:100%; padding:12px 14px; border:none; border-radius:8px; font-size:1rem; outline:none; margin-bottom:16px; }
+button { width:100%; padding:12px; background:#1db954; border:none; border-radius:30px; color:#fff; font-size:1rem; font-weight:bold; cursor:pointer; }
+button:hover { filter:brightness(1.1); }
+#err { color:#ff6b6b; font-size:.85rem; margin-top:12px; min-height:1.2em; }
+</style>
+</head>
+<body>
+<div class="box">
+<h1>🎵 Spotify 控制器</h1>
+<p>请输入访问密码</p>
+<form id="f">
+<input type="password" id="pw" placeholder="访问密码" autocomplete="current-password" autofocus>
+<button type="submit">进入</button>
+</form>
+<div id="err"></div>
+</div>
+<script>
+document.getElementById('f').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var err = document.getElementById('err');
+  err.textContent = '';
+  try {
+    var r = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: document.getElementById('pw').value })
+    });
+    if (r.ok) { location.href = '/'; }
+    else { var d = await r.json().catch(function(){ return {}; }); err.textContent = d.error || '密码错误'; }
+  } catch (ex) { err.textContent = '网络错误'; }
+});
+</script>
+</body>
+</html>`);
+});
+
+// 登录接口
+app.post('/api/auth', (req, res) => {
+  if (req.body && req.body.password === ACCESS_PASSWORD) {
+    res.setHeader('Set-Cookie', 'auth=' + AUTH_HASH + '; HttpOnly; Path=/; Max-Age=31536000; SameSite=Lax');
+    res.json({ ok: true });
+  } else {
+    res.status(401).json({ error: '密码错误' });
   }
 });
 
